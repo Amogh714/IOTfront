@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hazard Status Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #060709;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Barlow', sans-serif;
+    }
+
+    #monitor-root {
+      width: 420px;
+      min-height: 520px;
+      position: relative;
+      overflow: hidden;
+      background: #0a0c10;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      min-height: 520px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .screen.active { display: flex; }
+
+    .scanline {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* SAFE */
+    #screen-safe { background: #070e0a; }
+    #screen-safe .border-ring {
+      position: absolute; inset: 0;
+      border: 2px solid #1dff6e22;
+      border-radius: 16px;
+      animation: pulse-border-safe 2s ease-in-out infinite;
+    }
+    @keyframes pulse-border-safe {
+      0%, 100% { border-color: #1dff6e22; }
+      50%       { border-color: #1dff6e55; }
+    }
+    .safe-badge {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.25em;
+      color: #1dff6e; background: #1dff6e18; border: 1px solid #1dff6e44;
+      padding: 5px 16px; border-radius: 20px; margin-bottom: 22px;
+      display: flex; align-items: center; gap: 8px;
+      position: relative; z-index: 2;
+    }
+    .safe-dot {
+      width: 6px; height: 6px; background: #1dff6e; border-radius: 50%;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+    .safe-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 108px; font-weight: 900; letter-spacing: -0.02em;
+      color: #fff; line-height: 1; position: relative; z-index: 2;
+    }
+    .safe-sub {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.22em;
+      color: #ffffff44; border: 1px solid #ffffff18;
+      padding: 5px 18px; border-radius: 3px; margin-top: 16px;
+      position: relative; z-index: 2;
+    }
+
+    /* FIRE */
+    #screen-fire { background: #160300; }
+    .bg-glow-fire {
+      position: absolute; width: 460px; height: 460px;
+      background: radial-gradient(circle, #ff200028 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      animation: fire-pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes fire-pulse {
+      0%, 100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.7; }
+      50%       { transform: translate(-50%,-50%) scale(1.18); opacity: 1;   }
+    }
+    .fire-warn-icon {
+      font-size: 52px; margin-bottom: 14px;
+      position: relative; z-index: 2;
+      animation: fire-pulse 0.85s ease-in-out infinite;
+    }
+    .fire-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 76px; font-weight: 900; letter-spacing: 0.02em;
+      color: #fff; line-height: 1; text-align: center;
+      position: relative; z-index: 2; margin-bottom: 16px;
+    }
+    .zone-badge-fire {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px; font-weight: 700; letter-spacing: 0.15em;
+      color: #fff; background: #cc1400; border: 2px solid #ff2200;
+      padding: 6px 24px; border-radius: 3px; margin-bottom: 22px;
+      position: relative; z-index: 2;
+      animation: zone-flash 0.85s ease-in-out infinite;
+    }
+    @keyframes zone-flash {
+      0%, 100% { background: #cc1400; border-color: #ff2200; }
+      50%       { background: #ff2200; border-color: #ff5533; }
+    }
+    .action-text-fire {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.2em;
+      color: #ff6644; position: relative; z-index: 2;
+    }
+
+    /* GAS */
+    #screen-gas { background: #12100a; }
+    .bg-glow-gas {
+      position: absolute; width: 500px; height: 320px;
+      background: radial-gradient(ellipse, #ffaa0018 0%, transparent 70%);
+      top: 45%; left: 50%; transform: translate(-50%, -50%);
+    }
+    .gas-header {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.25em;
+      color: #e8a030; margin-bottom: 14px;
+      position: relative; z-index: 2;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .gas-dot {
+      width: 6px; height: 6px; background: #e8a030; border-radius: 50%;
+      animation: blink 0.65s ease-in-out infinite;
+    }
+    .gas-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 84px; font-weight: 900; letter-spacing: 0.02em;
+      color: #e8a030; line-height: 0.95; text-align: center;
+      position: relative; z-index: 2; margin-bottom: 8px;
+    }
+    .gas-sub {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.2em;
+      color: #e8a03088; background: #e8a03018; border: 1px solid #e8a03038;
+      padding: 4px 16px; border-radius: 3px; margin-bottom: 22px;
+      position: relative; z-index: 2;
+    }
+    .zones-row {
+      display: flex; gap: 10px; margin-bottom: 18px;
+      position: relative; z-index: 2; flex-wrap: wrap; justify-content: center;
+    }
+    .zone-chip {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 700; letter-spacing: 0.1em;
+      color: #fff; background: #1e1a10; border: 1px solid #e8a03055;
+      padding: 10px 26px; border-radius: 4px; text-align: center;
+    }
+    .zone-chip span {
+      display: block; font-size: 9px; font-weight: 400;
+      color: #e8a03088; letter-spacing: 0.15em; margin-top: 3px;
+    }
+    .gas-action {
+      background: #e8a030; color: #12100a;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 700; letter-spacing: 0.15em;
+      padding: 12px 28px; border-radius: 4px;
+      display: flex; align-items: center; gap: 10px;
+      position: relative; z-index: 2;
+      animation: action-pulse 1s ease-in-out infinite;
+    }
+    @keyframes action-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.72; } }
+
+    /* BOTH */
+    #screen-both { background: #0d0508; }
+    .both-header {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.25em;
+      color: #ff4422; margin-bottom: 20px;
+      position: relative; z-index: 2;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .both-dot {
+      width: 6px; height: 6px; background: #ff4422; border-radius: 50%;
+      animation: blink 0.5s ease-in-out infinite;
+    }
+    .both-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      width: 100%; max-width: 340px;
+      position: relative; z-index: 2; margin-bottom: 18px;
+    }
+    .both-card {
+      border-radius: 8px; padding: 20px 16px; text-align: center;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 130px;
+    }
+    .both-card.fire {
+      background: #260500; border: 1px solid #ff220044;
+      animation: card-flash-fire 0.9s ease-in-out infinite;
+    }
+    .both-card.gas {
+      background: #1e1600; border: 1px solid #e8a03044;
+      animation: card-flash-gas 0.9s ease-in-out infinite;
+    }
+    @keyframes card-flash-fire { 0%,100%{border-color:#ff220044} 50%{border-color:#ff2200aa} }
+    @keyframes card-flash-gas  { 0%,100%{border-color:#e8a03044} 50%{border-color:#e8a030aa} }
+    .both-icon { font-size: 28px; margin-bottom: 8px; }
+    .both-card-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 30px; font-weight: 900; line-height: 1; margin-bottom: 6px;
+    }
+    .both-card.fire .both-card-label { color: #ff4422; }
+    .both-card.gas  .both-card-label { color: #e8a030; }
+    .both-card-zone { font-size: 10px; font-weight: 600; letter-spacing: 0.15em; }
+    .both-card.fire .both-card-zone { color: #ff442288; }
+    .both-card.gas  .both-card-zone { color: #e8a03088; }
+    .both-alert {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.18em;
+      color: #fff; background: #2a0510; border: 1px solid #ff224455;
+      padding: 10px 24px; border-radius: 4px;
+      position: relative; z-index: 2; text-align: center;
+      animation: action-pulse 0.6s ease-in-out infinite;
+    }
+
+    /* Status bar */
+    .status-bar {
+      position: absolute; bottom: 12px; right: 16px;
+      font-size: 10px; font-weight: 500; letter-spacing: 0.1em;
+      color: #ffffff33; z-index: 20;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .api-dot { width: 5px; height: 5px; border-radius: 50%; background: #1dff6e; flex-shrink: 0; }
+    .api-dot.error { background: #ff4444; }
+    .timestamp {
+      position: absolute; top: 14px; right: 16px;
+      font-size: 10px; letter-spacing: 0.12em; color: #ffffff28; z-index: 20;
+    }
+  </style>
+</head>
+<body>
+
+<div id="monitor-root">
+
+  <div class="timestamp" id="ts">--:--:--</div>
+
+  <!-- SAFE -->
+  <div id="screen-safe" class="screen active">
+    <div class="border-ring"></div>
+    <div class="scanline"></div>
+    <div class="safe-badge"><div class="safe-dot"></div> VIGILANCE ACTIVE</div>
+    <div class="safe-title">SAFE</div>
+    <div class="safe-sub">ALL ZONES SECURE</div>
+  </div>
+
+  <!-- FIRE -->
+  <div id="screen-fire" class="screen">
+    <div class="bg-glow-fire"></div>
+    <div class="scanline"></div>
+    <div class="fire-warn-icon">⚠</div>
+    <div class="fire-title">FIRE<br>DETECTED</div>
+    <div class="zone-badge-fire">ZONE 3</div>
+    <div class="action-text-fire">DEPLOY SUPPRESSION IMMEDIATELY</div>
+  </div>
+
+  <!-- GAS -->
+  <div id="screen-gas" class="screen">
+    <div class="bg-glow-gas"></div>
+    <div class="scanline"></div>
+    <div class="gas-header"><div class="gas-dot"></div> CRITICAL HAZARD</div>
+    <div class="gas-title">GAS<br>DETECTED</div>
+    <div class="gas-sub">TOXIC ATMOSPHERE ALERT</div>
+    <div class="zones-row" id="gas-zones-row"></div>
+    <div class="gas-action">&#9679;&nbsp; EVACUATE AREA &amp; WEAR MASK</div>
+  </div>
+
+  <!-- BOTH -->
+  <div id="screen-both" class="screen">
+    <div class="scanline"></div>
+    <div class="both-header"><div class="both-dot"></div> MULTIPLE HAZARDS DETECTED</div>
+    <div class="both-grid">
+      <div class="both-card fire">
+        <div class="both-icon">🔥</div>
+        <div class="both-card-label">FIRE</div>
+        <div class="both-card-zone">ZONE 3</div>
+      </div>
+      <div class="both-card gas">
+        <div class="both-icon">☁</div>
+        <div class="both-card-label">GAS</div>
+        <div class="both-card-zone" id="both-gas-zones">ZONE 1 · ZONE 2</div>
+      </div>
+    </div>
+    <div class="both-alert">EVACUATE ALL ZONES · CALL EMERGENCY SERVICES</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="api-dot" id="api-dot"></div>
+    <span id="api-status">connecting...</span>
+  </div>
+
+</div>
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────────────────────────
+  const API_URL = 'http://localhost:7777/status';
+  const POLL_MS = 2000;
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const screenIds = ['safe', 'fire', 'gas', 'both'];
+  const apiDot    = document.getElementById('api-dot');
+  const apiStatus = document.getElementById('api-status');
+  const tsEl      = document.getElementById('ts');
+  let current     = 'safe';
+
+  function showScreen(name) {
+    if (current === name) return;
+    current = name;
+    screenIds.forEach(id => {
+      document.getElementById('screen-' + id).classList.toggle('active', id === name);
+    });
+  }
+
+  function updateClock() {
+    tsEl.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  }
+
+  // API response shape: { "activeZones": ["Zone 1", "Zone 2", "Zone 3"] }
+  // "Zone 1" or "Zone 2" → gas hazard
+  // "Zone 3"             → fire hazard
+  function parseZones(activeZones) {
+    const norm = (z) => z.toString().toLowerCase().replace(/\s+/g, '');
+    const gas  = activeZones.some(z => norm(z) === 'zone1' || norm(z) === 'zone2');
+    const fire = activeZones.some(z => norm(z) === 'zone3');
+    return { gas, fire };
+  }
+
+  function buildGasChips(activeZones) {
+    const row = document.getElementById('gas-zones-row');
+    row.innerHTML = '';
+    const norm = (z) => z.toString().toLowerCase().replace(/\s+/g, '');
+    const gasZones = activeZones.filter(z => norm(z) === 'zone1' || norm(z) === 'zone2');
+    gasZones.forEach(z => {
+      const chip = document.createElement('div');
+      chip.className = 'zone-chip';
+      chip.innerHTML = z.toUpperCase() + '<span>AFFECTED</span>';
+      row.appendChild(chip);
+    });
+  }
+
+  async function pollStatus() {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      apiDot.classList.remove('error');
+      apiStatus.textContent = 'live · /status';
+
+      const activeZones = data.activeZones || [];
+      const { gas, fire } = parseZones(activeZones);
+
+      if (fire && gas) {
+        showScreen('both');
+      } else if (fire) {
+        showScreen('fire');
+      } else if (gas) {
+        buildGasChips(activeZones);
+        showScreen('gas');
+      } else {
+        showScreen('safe');
+      }
+
+    } catch (err) {
+      apiDot.classList.add('error');
+      apiStatus.textContent = 'error · cannot reach /status';
+      console.error('Poll failed:', err);
+    }
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+  pollStatus();
+  setInterval(pollStatus, POLL_MS);
+</script>
+
+</body>
+</html>
